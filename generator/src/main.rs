@@ -1399,8 +1399,6 @@ fn main() {
         paths.insert("ObjectsDependencies".to_owned(), "platform.client.core.general.spaces.loading.dispatcher.types.ObjectsDependencies".to_owned());
         paths.insert("ModelData".to_owned(), "platform.client.core.general.spaces.loading.modelconstructors.ModelData".to_owned());
 
-        paths.insert("MoveCommand".to_owned(), "projects.tanks.client.battlefield.models.user.tank.commands.MoveCommand".to_owned());
-
         paths.insert("Resource".to_owned(), "platform.client.fp10.core.resource.Resource".to_owned());
         paths.insert("SoundResource".to_owned(), "platform.client.fp10.core.resource.types.SoundResource".to_owned());
         paths.insert("MapResource".to_owned(), "projects.tanks.clients.flash.resources.resource.MapResource".to_owned());
