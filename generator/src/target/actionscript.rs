@@ -719,7 +719,7 @@ pub fn generate_base_activator_actionscript_code(
     );
     for model in models_defs {
         let (model_idhigh, model_idlow) = convert_from_id(model.id);
-        for method in &model.server_methods {
+        for method in &model.client_methods {
             let (method_idhigh, method_idlow) = convert_from_id(method.id);
             builder.push_str(&format!(
                 "    modelRegistry.register(Long.getLong({},{}),Long.getLong({},{}));\n",
