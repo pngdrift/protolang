@@ -687,6 +687,7 @@ pub fn generate_base_activator_actionscript_code(
             todo!()
         };
         imports.append(&mut vec![format!("{}.{}", client_package, client_name)]);
+        imports.append(&mut vec![format!("_codec.{}.Codec{}", client_package, client_name)]);
     }
     for enumd in &enums_defs {
         let client_package =
@@ -701,6 +702,7 @@ pub fn generate_base_activator_actionscript_code(
             todo!()
         };
         imports.append(&mut vec![format!("{}.{}", client_package, client_name)]);
+        imports.append(&mut vec![format!("_codec.{}.Codec{}", client_package, client_name)]);
     }
     let imports = imports
         .iter()
