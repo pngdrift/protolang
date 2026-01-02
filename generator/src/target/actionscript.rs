@@ -649,6 +649,109 @@ pub fn generate_enum_codec_actionscript_code(enum_def: &Enum, root_package: Opti
   builder
 }
 
+pub fn generate_base_activator_actionscript_code(
+    models_defs: Vec<Model>,
+    types_defs: Vec<Type>,
+    enums_defs: Vec<Enum>,
+    module: Option<&str>,
+) -> String {
+    debug!("models len {}", models_defs.len());
+    let mut builder = String::new();
+
+    builder.push_str(&format!(
+        "package {}.osgi {{\n",
+        module.unwrap().replace("/", ".")
+    ));
+    builder.push_str(
+        r#"  import alternativa.osgi.OSGi;
+  import alternativa.osgi.bundle.IBundleActivator;
+  import alternativa.protocol.ICodec;
+  import alternativa.protocol.IProtocol;
+  import alternativa.protocol.codec.OptionalCodecDecorator;
+  import alternativa.protocol.info.*;
+  import alternativa.types.Long;
+  import platform.client.fp10.core.registry.ModelRegistry;
+"#,
+    );
+    let mut imports = Vec::<String>::new();
+    for typed in &types_defs {
+        let client_package =
+            if let Some(meta) = typed.meta.iter().find(|it| it.key == "client_package") {
+                &meta.value
+            } else {
+                todo!()
+            };
+        let client_name = if let Some(meta) = typed.meta.iter().find(|it| it.key == "client_name") {
+            &meta.value
+        } else {
+            todo!()
+        };
+        imports.append(&mut vec![format!("{}.{}", client_package, client_name)]);
+    }
+    for enumd in &enums_defs {
+        let client_package =
+            if let Some(meta) = enumd.meta.iter().find(|it| it.key == "client_package") {
+                &meta.value
+            } else {
+                todo!()
+            };
+        let client_name = if let Some(meta) = enumd.meta.iter().find(|it| it.key == "client_name") {
+            &meta.value
+        } else {
+            todo!()
+        };
+        imports.append(&mut vec![format!("{}.{}", client_package, client_name)]);
+    }
+    let imports = imports
+        .iter()
+        .unique()
+        .map(|import| format!("  import {};", import))
+        .join("\n");
+    builder.push_str(&imports);
+    builder.push_str("\n\n");
+
+    builder.push_str("  public class Activator implements IBundleActivator {\n\n");
+    builder.push_str("   public function start(osgi:OSGi) : void {\n");
+    builder.push_str(
+        "    var modelRegistry:ModelRegistry = ModelRegistry(osgi.getService(ModelRegistry));\n",
+    );
+    for model in models_defs {
+        let (model_idhigh, model_idlow) = convert_from_id(model.id);
+        for method in &model.server_methods {
+            let (method_idhigh, method_idlow) = convert_from_id(method.id);
+            builder.push_str(&format!(
+                "    modelRegistry.register(Long.getLong({},{}),Long.getLong({},{}));\n",
+                model_idhigh, model_idlow, method_idhigh, method_idlow
+            ));
+        }
+    }
+    builder.push_str("    var protocol:IProtocol = IProtocol(osgi.getService(IProtocol));\n");
+    builder.push_str("    var codec:ICodec;\n");
+    for typed in types_defs {
+        builder.push_str(&format!("    codec = new Codec{}();\n", typed.name));
+        builder.push_str(&format!(
+            "    protocol.registerCodec(new TypeCodecInfo({},false),codec);\n",
+            typed.name
+        ));
+        builder.push_str(&format!("    protocol.registerCodec(new TypeCodecInfo({},true),new OptionalCodecDecorator(codec));\n",typed.name));
+    }
+    for enumd in enums_defs {
+        builder.push_str(&format!("    codec = new Codec{}();\n", enumd.name));
+        builder.push_str(&format!(
+            "    protocol.registerCodec(new EnumCodecInfo({},false),codec);\n",
+            enumd.name
+        ));
+        builder.push_str(&format!("    protocol.registerCodec(new EnumCodecInfo({},true),new OptionalCodecDecorator(codec));\n",enumd.name));
+    }
+
+    builder.push_str("   }\n\n");
+    builder.push_str("   public function stop(osgi:OSGi) : void {}\n");
+    builder.push_str("  }\n");
+    builder.push_str("}\n");
+
+    builder
+}
+
 lazy_static! {
   static ref REGEX_1: Regex = Regex::new(r"\bbool\b").unwrap();
   static ref REGEX_2: Regex = Regex::new(r"\bi8\b").unwrap();

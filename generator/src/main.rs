@@ -19,7 +19,7 @@ use protolang_parser::{enum_to_definition, hl, model_to_definition, type_to_defi
 use regex::Regex;
 use once_cell::sync::Lazy;
 use protolang_parser::hl::{Meta, ModelConstructor, Type};
-use crate::target::actionscript::{convert_type, generate_enum_actionscript_code, generate_enum_codec_actionscript_code, generate_model_base_actionscript_code, generate_model_client_interface_actionscript_code, generate_model_server_actionscript_code, generate_type_actionscript_code, generate_type_codec_actionscript_code};
+use crate::target::actionscript::{convert_type, generate_base_activator_actionscript_code, generate_enum_actionscript_code, generate_enum_codec_actionscript_code, generate_model_base_actionscript_code, generate_model_client_interface_actionscript_code, generate_model_server_actionscript_code, generate_type_actionscript_code, generate_type_codec_actionscript_code};
 use crate::target::kotlin::{generate_enum_kotlin_code, generate_model_kotlin_code, generate_type_kotlin_code};
 use crate::target::protolang::{generate_protolang_code, generate_protolang_code_enum, generate_protolang_code_type};
 
@@ -132,6 +132,9 @@ fn generate_kotlin(root_package: Option<&str>, module: Option<&str>, input_root:
 }
 
 fn generate_actionscript(root_package: Option<&str>, module: Option<&str>, input_root: &Path, output_root: &Path) {
+  let mut enums_defs = Vec::new();
+  let mut types_defs = Vec::new();
+  let mut models_defs = Vec::new();
   for entry in WalkDir::new(input_root) {
     let entry = entry.unwrap();
     let path = entry.path();
@@ -254,6 +257,8 @@ fn generate_actionscript(root_package: Option<&str>, module: Option<&str>, input
               fs::create_dir_all(output_path.parent().unwrap()).unwrap();
               fs::write(output_path, wrapped_code).unwrap();
             }
+
+            types_defs.push(type_def);
           }
         }
 
@@ -325,6 +330,8 @@ fn generate_actionscript(root_package: Option<&str>, module: Option<&str>, input
           fs::create_dir_all(output_path.parent().unwrap()).unwrap();
           fs::write(output_path, wrapped_code).unwrap();
         }
+
+        models_defs.push(definition);
       } else {
         let (client_package, client_name, code) = match item {
           ProgramItem::Type(type_def) => {
@@ -391,13 +398,17 @@ fn generate_actionscript(root_package: Option<&str>, module: Option<&str>, input
               let definition = type_to_definition(type_def).unwrap();
               debug!("{:?}", definition);
 
-              generate_type_codec_actionscript_code(&definition, root_package)
+              let code = generate_type_codec_actionscript_code(&definition, root_package);
+              types_defs.push(definition);
+              code
             }
             ProgramItem::Enum(enum_def) => {
               let definition = enum_to_definition(enum_def).unwrap();
               debug!("{:?}", definition);
 
-              generate_enum_codec_actionscript_code(&definition, root_package)
+              let code = generate_enum_codec_actionscript_code(&definition, root_package);
+              enums_defs.push(definition);
+              code
             }
             _ => continue
           };
@@ -417,6 +428,20 @@ fn generate_actionscript(root_package: Option<&str>, module: Option<&str>, input
       }
     }
   }
+  if module.is_none() {
+      info!("module not specified");
+      return;
+  }
+  if module.unwrap().contains(",") {
+      todo!();
+  }
+  let activator_code = generate_base_activator_actionscript_code(models_defs, types_defs, enums_defs, module);
+  let relative_path = format!("{}/osgi/Activator.as", module.unwrap());
+  let output_path = output_root.join(&relative_path);
+  info!("generate base activator actionscript code into {:?}", output_path);
+
+  fs::create_dir_all(output_path.parent().unwrap()).unwrap();
+  fs::write(output_path, activator_code).unwrap();
 }
 
 pub fn convert_constructor_to_type(constructor: ModelConstructor) -> Type {

@@ -1,6 +1,9 @@
 # JetBrains IDEs
 .idea
 
+# Zed Editor
+.zed
+
 # Build artifacts
 /target
 
